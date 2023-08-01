@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Seedbox dashboard improvement
 // @namespace    http://tampermonkey.net/
-// @version      0.9.0
+// @version      0.9.01
 // @description  Add daily progress to dashboard
 // @author       toomanynights
 // @match        https://*.itsby.design/
@@ -34,12 +34,14 @@
 
     // function to get network data in async mode
     async function getNetUsed() {
-        let response = await fetch("https://9.lw.itsby.design/stats/network").then(response => response.json());
+        var host = "https://" + window.location.host;
+        let response = await fetch(host + "/stats/network").then(response => response.json());
         return response;
 
     };
 
     let netUsed = ""; // root level value for comparison
+
 
     // function to refresh data in UI
     async function refreshCalc() {
