@@ -1,32 +1,52 @@
 // ==UserScript==
 // @name         Seedbox dashboard improvement
 // @namespace    http://tampermonkey.net/
-// @version      0.903
+// @version      0.9.0
 // @description  Add daily progress to dashboard
 // @author       toomanynights
-// @match        https://9.lw.itsby.design/
+// @match        https://*.itsby.design/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=itsby.design
-// @grant        none
+// @grant GM_setValue
+// @grant GM_getValue
+//
 // ==/UserScript==
+
 
 (function() {
     'use strict';
 
+    // -- USER VALUES --
+
+    const cutoffDay = 14; // Billing day of month
+    const speedAllowance = 0.1; // What % of speed is allowed on top of maximum, calculated with presumption of 100% load. Default = 0.1 (10%)
+    const usedMinAllowance = 1; // How many days worth of traffic consumption you need to have in store for the script to consider you "going too slow". Default = 1
+    const usedMaxAllowance = 1; // How many days worth of traffic consumption you need to lack, so the script would consider you "going too fast". Default = 1
+
+    // -- USER VALUES END - DON'T EDIT BELOW THIS POINT --
+
+
+    // helper function to clean data
+    function numberClean(num) {
+        const numClean = num.replace(" TB", "");
+        const numFinal = Number(numClean) * 1000;
+        return numFinal;
+    }
+
+    // function to get network data in async mode
     async function getNetUsed() {
         let response = await fetch("https://9.lw.itsby.design/stats/network").then(response => response.json());
-        return response.netused;
+        return response;
 
     };
 
     let netUsed = ""; // root level value for comparison
 
+    // function to refresh data in UI
     async function refreshCalc() {
 
         // checking if it needs to be fired
-
-        const currentUsed = await getNetUsed();
+        const currentUsed = (await getNetUsed()).netused;
         if (currentUsed == netUsed) {
-            console.log("refresh not needed");
             return;
         } else {
             netUsed = currentUsed;
@@ -37,7 +57,6 @@
         // finding out where we are in current period and its dates
         const currDate = new Date();
         const currDay = currDate.getDate();
-        const cutoffDay = 14;
         let periodStart = "";
         let periodEnd = "";
 
@@ -57,28 +76,15 @@
 
         // dates have been figured out, now to the limits
 
-        const periodLimit = 10000;
+        const periodLimitRaw = (await getNetUsed()).nettotal;
+        const periodLimit = numberClean(periodLimitRaw);
         const dailyLimit = (periodLimit / periodLength);
         const currentUsedExact = daysGone * dailyLimit;
-        const currentUsedMin = currentUsedExact - dailyLimit;
-        const currentUsedMax = currentUsedExact + dailyLimit;
-        let currentState = "";
-        const speedAllowance = 0.1;
+        const currentUsedMin = currentUsedExact - (usedMinAllowance * dailyLimit);
+        const currentUsedMax = currentUsedExact + (usedMaxAllowance * dailyLimit);
+        const currentUsedFinal = numberClean(netUsed);
         const recomSpeed = Math.round(((periodLimit * 1000 * 1000) / periodLength / 24 / 60 / 60) * (1 + speedAllowance));
-
-        // figuring out current consumption situation
-
-        const currentUsedClean = currentUsed.replace(" TB", "");
-        const currentUsedFinal = Number(currentUsedClean) * 1000;
-        if (currentUsedMin > currentUsedFinal) {
-            currentState = "good";
-        } else if (currentUsedMin <= currentUsedFinal && currentUsedFinal < currentUsedMax) {
-            currentState = "normal";
-        } else if (currentUsedFinal >= currentUsedMax) {
-            currentState = "bad";
-        } else {
-            currentState = "error";
-        }
+        const usedPercent = (await getNetUsed()).perutil;
 
 
         // printing debug info to console
@@ -95,13 +101,17 @@
         childDiv1BodyText.nodeValue = Math.round(dailyLimit) + " Gb";
         childDiv2BodyText.nodeValue = Math.round(currentUsedExact) + " Gb";
         childDiv3.className = "";
-        if (currentState == "good") {
+
+        if (usedPercent >= 69.00 && usedPercent < 70.00) {
+            childDiv3.classList.add("alert","alert-info");
+            childDiv3BodyText.nodeValue = "69% - nice 😏";
+        } else if (currentUsedMin > currentUsedFinal) {
             childDiv3.classList.add("alert","alert-success");
             childDiv3BodyText.nodeValue = "Crank that upload speed up!";
-        } else if (currentState == "normal") {
+        } else if (currentUsedMin <= currentUsedFinal && currentUsedFinal < currentUsedMax) {
             childDiv3.classList.add("alert","alert-warning");
             childDiv3BodyText.nodeValue = "You are about fine";
-        } else if (currentState == "bad") {
+        } else if (currentUsedFinal >= currentUsedMax) {
             childDiv3.classList.add("alert","alert-danger");
             childDiv3BodyText.nodeValue = "Slow down there pal!";
         } else {
