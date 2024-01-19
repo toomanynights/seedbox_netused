@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Seedbox dashboard improvement
 // @namespace    http://tampermonkey.net/
-// @version      0.95
+// @version      1.1
 // @description  Add daily progress to dashboard
 // @author       toomanynights
 // @match        https://*.itsby.design/
