@@ -339,13 +339,13 @@
         let cleanNumFinal = "";
 
         switch (cleanUnit) {
-            case "TB":
+            case "TiB":
                 cleanNumFinal = Number(cleanNum) * 1000;
                 break;
-            case "GB":
+            case "GiB":
                 cleanNumFinal = Number(cleanNum);
                 break;
-            case "MB":
+            case "MiB":
                 cleanNumFinal = Number(cleanNum) / 1000;
                 break;
         }
